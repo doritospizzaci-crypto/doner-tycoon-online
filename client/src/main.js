@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PLAYER_SPEED, PLAYER_RADIUS, MOVE_SEND_HZ } from '/shared/constants.js';
 import { STATIONS, SPAWN_POINTS } from '/shared/layout.js';
 import { resolveCollisions, nearestStation } from '/shared/collision.js';
+import { ITEM_LABELS } from '/shared/gameLogic.js';
 import { Network } from './network/Network.js';
 import { Input, setupJoystick } from './game/controls/Input.js';
 import { IsoCamera } from './game/camera/IsoCamera.js';
@@ -12,14 +13,12 @@ import { UI } from './game/ui/UI.js';
 const ui = new UI();
 const canvas = document.getElementById('game');
 
-// ---- WebGL 2 kontrolü ----
 const probe = document.createElement('canvas');
 if (!probe.getContext('webgl2')) {
   ui.fatal('Bu cihaz veya tarayıcı WebGL 2 desteklemiyor. Güncel Chrome, Edge, Firefox veya Safari ile dene.');
   throw new Error('WebGL2 yok');
 }
 
-// ---- sahne ----
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: !ui.isTouch, powerPreference: 'high-performance' });
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -31,7 +30,6 @@ const cam = new IsoCamera(camera, canvas);
 const input = new Input();
 setupJoystick(input, document.getElementById('joystick'), document.getElementById('knob'));
 
-// ---- ayarlar ----
 const QUALITY = {
   low: { shadows: false, size: 512, pr: 1 },
   medium: { shadows: true, size: 1024, pr: 1.5 },
@@ -55,7 +53,6 @@ function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
-  // dar (dikey) ekranlarda görüş alanını biraz aç
   camera.fov = w / h < 0.8 ? 52 : 40;
   camera.updateProjectionMatrix();
 }
@@ -65,18 +62,19 @@ ui.el.quality.addEventListener('change', (e) => { settings.quality = e.target.va
 ui.el.fx.addEventListener('change', (e) => { settings.fx = e.target.checked; applySettings(); });
 applySettings();
 
-// ---- oyun durumu ----
 const net = new Network();
 const state = {
   inGame: false,
-  me: null,            // yerel Character
+  me: null,
   pos: { x: 0, z: 0 },
   rot: 0,
-  remotes: new Map(),  // id -> { char, tx, tz, tr, lastX, lastZ }
+  remotes: new Map(),
   lastSent: { x: 1e9, z: 1e9, r: 0, t: 0 },
   sendAcc: 0,
   actCooldown: 0,
   room: null,
+  game: null,
+  myHands: [],
 };
 
 function addRemote(p) {
@@ -106,7 +104,11 @@ function syncRoom(room) {
   for (const p of room.players) if (p.id !== net.myId) addRemote(p);
   ui.renderPlayers(room, net.myId);
   const mine = room.players.find((p) => p.id === net.myId);
-  if (mine && ui.el.role.value !== (mine.role || '')) ui.el.role.value = mine.role || '';
+  if (mine) {
+    state.myHands = mine.hands || [];
+    if (ui.el.role.value !== (mine.role || '')) ui.el.role.value = mine.role || '';
+  }
+  ui.renderGame(state.game, state.myHands);
 }
 
 function enterGame(res) {
@@ -119,9 +121,13 @@ function enterGame(res) {
   state.me.setPosition(me.x, me.z);
   cam.follow(me.x, me.z);
   cam.snap();
+  state.game = res.game || null;
+  state.myHands = me.hands || [];
   syncRoom(res.room);
   ui.showGame(res.room.code);
   ui.addChat('Odaya girdin. Kodu arkadaşlarınla paylaş: ' + res.room.code, { system: true });
+  ui.addChat('İpucu: Izgara → Kes → Ekmek/Malzeme → Kasada teslim et!', { system: true });
+  ui.renderGame(state.game, state.myHands);
   state.inGame = true;
   state.lastSent.x = 1e9;
   startLoop();
@@ -131,11 +137,12 @@ function leaveToLobby(message) {
   state.inGame = false;
   clearWorldPlayers();
   state.room = null;
+  state.game = null;
+  state.myHands = [];
   ui.showLobby();
   ui.lobbyMessage(message);
 }
 
-// ---- ağ olayları ----
 net.on('status', (s) => ui.setStatus(s));
 net.on('room', (room) => { if (state.inGame) syncRoom(room); });
 net.on('players', (list) => {
@@ -152,6 +159,15 @@ net.on('correct', (p) => {
 });
 net.on('action', (a) => state.remotes.get(a.id)?.char.playWork(1.2));
 net.on('chat', (m) => ui.addChat(m.text, { name: m.name }));
+net.on('game', (g) => {
+  state.game = g;
+  ui.renderGame(g, state.myHands);
+});
+net.on('serve', (s) => {
+  const tip = s.tip ? ` (+₺${s.tip} bahşiş!)` : '';
+  ui.toast(`✅ ${s.label} teslim · ₺${s.earned}${tip}`);
+  ui.addChat(`${s.player} ${s.label} teslim etti · ₺${s.earned}${tip}`, { system: true });
+});
 net.on('notice', (n) => {
   const t = {
     join: `${n.name} odaya katıldı`,
@@ -166,16 +182,17 @@ net.on('notice', (n) => {
 });
 net.on('rejoined', (res) => {
   if (!state.inGame) return;
+  state.game = res.game || state.game;
   syncRoom(res.room);
   const me = res.room.players.find((p) => p.id === res.you);
-  if (me) { state.pos.x = me.x; state.pos.z = me.z; }
+  if (me) { state.pos.x = me.x; state.pos.z = me.z; state.myHands = me.hands || []; }
+  ui.renderGame(state.game, state.myHands);
   ui.addChat('Bağlantı yeniden kuruldu', { system: true });
 });
 net.on('rejoinFailed', () => leaveToLobby('Bağlantı koptu ve oda artık yok. Yeni oda kur veya tekrar katıl.'));
 
 net.connect().catch((e) => ui.fatal('Sunucu istemcisi yüklenemedi. Sunucu çalışıyor mu? ' + e.message));
 
-// ---- lobi düğmeleri ----
 async function lobbyAction(kind) {
   const name = ui.el.name.value.trim();
   if (!name) { ui.lobbyMessage('Önce bir isim yaz.'); return; }
@@ -189,7 +206,6 @@ document.getElementById('btn-create').addEventListener('click', () => lobbyActio
 document.getElementById('btn-join').addEventListener('click', () => lobbyAction('join'));
 ui.el.code.addEventListener('keydown', (e) => { if (e.key === 'Enter') lobbyAction('join'); });
 
-// ---- HUD düğmeleri ----
 document.getElementById('btn-share').addEventListener('click', async () => {
   const code = state.room?.code;
   if (!code) return;
@@ -228,18 +244,55 @@ ui.el.chatform.addEventListener('submit', (e) => {
 });
 ui.el.role.addEventListener('change', (e) => net.sendRole(e.target.value || null));
 
-function interact() {
+async function interact() {
   if (!state.inGame || state.actCooldown > 0 || ui.menuOpen) return;
   const st = nearestStation(state.pos.x, state.pos.z, STATIONS);
   if (!st) return;
-  state.actCooldown = 1.0;
-  state.me.playWork(1.2);
-  net.sendInteract(st.id);
+  state.actCooldown = 0.9;
+  state.me.playWork(1.1);
+  const res = await net.sendInteract(st.id);
+  if (!res) return;
+  if (!res.ok) {
+    ui.toast(res.message || 'Olmadı');
+    return;
+  }
+  if (res.kind === 'pickup') {
+    state.myHands = res.hands || state.myHands;
+    ui.toast('Aldın: ' + (ITEM_LABELS[res.item] || res.item));
+  } else if (res.kind === 'stock') {
+    ui.toast('Stoğa eklendi: ' + (ITEM_LABELS[res.item] || res.item));
+  } else if (res.kind === 'cook') {
+    ui.toast('Izgara: ' + res.spit + ' dilim hazır');
+  } else if (res.kind === 'serve') {
+    // toast serve eventinden
+  } else if (res.kind === 'storage') {
+    ui.toast('Raf stoku güncellendi');
+  }
+  ui.renderGame(state.game, state.myHands);
 }
 input.onInteract = interact;
 document.getElementById('btn-act').addEventListener('pointerdown', (e) => { e.preventDefault(); interact(); });
 
-// ---- ana döngü ----
+async function dropItem() {
+  if (!state.inGame || ui.menuOpen) return;
+  const res = await net.sendDrop();
+  if (res?.ok) {
+    state.myHands = res.hands || [];
+    ui.toast('Bıraktın');
+    ui.renderGame(state.game, state.myHands);
+  } else if (res?.message) {
+    ui.toast(res.message);
+  }
+}
+document.getElementById('btn-drop')?.addEventListener('pointerdown', (e) => { e.preventDefault(); dropItem(); });
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyQ' && state.inGame && !ui.menuOpen && !ui.chatOpen) {
+    e.preventDefault();
+    dropItem();
+  }
+});
+
 const clock = new THREE.Clock();
 let rafId = 0;
 const MOVE_DT = 1 / MOVE_SEND_HZ;
@@ -255,7 +308,6 @@ function frame() {
   rafId = requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.1);
   if (!state.inGame) {
-    // Lobi: restoran arkada yavaşça dönerek görünür.
     cam.yaw += dt * 0.08;
     cam.update(dt);
     world.update(dt, camera.position, []);
@@ -263,7 +315,6 @@ function frame() {
     return;
   }
 
-  // yerel hareket (kameraya göre)
   const mv = input.getMove();
   const f = cam.forward(), r = cam.right();
   let dx = f.x * mv.y + r.x * mv.x;
@@ -285,7 +336,6 @@ function frame() {
   me.setFacing(state.rot);
   me.update(dt, speed);
 
-  // sunucuya düzenli gönder (değişim varsa)
   state.sendAcc += dt;
   if (state.sendAcc >= MOVE_DT) {
     state.sendAcc = 0;
@@ -297,7 +347,6 @@ function frame() {
     }
   }
 
-  // diğer oyuncular: yumuşatma / interpolasyon
   playerList.length = 0;
   playerList.push(state.pos);
   const a = 1 - Math.exp(-12 * dt);
@@ -312,7 +361,6 @@ function frame() {
     playerList.push({ x: g.x, z: g.z });
   }
 
-  // etkileşim ipucu
   ui.setHint(nearestStation(state.pos.x, state.pos.z, STATIONS));
 
   cam.follow(state.pos.x, state.pos.z);
@@ -324,13 +372,11 @@ function frame() {
 function startLoop() {
   if (!rafId) { clock.getDelta(); rafId = requestAnimationFrame(frame); }
 }
-// Sekme arka plana alınınca çizimi durdur (pil ve işlemci tasarrufu).
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { cancelAnimationFrame(rafId); rafId = 0; }
   else startLoop();
 });
 
-// Lobi arkasında restoranı göster ve döngüyü başlat
 cam.follow(SPAWN_POINTS[2].x, SPAWN_POINTS[2].z);
 cam.snap();
 startLoop();

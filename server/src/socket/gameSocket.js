@@ -9,6 +9,7 @@ import { LIMITS } from '../middleware/rateLimit.js';
 import {
   isObject, validName, validChat, validToken, validRole, validRoomCode, validMove,
 } from '../validation/validate.js';
+import { STATION_ACTIONS } from '../../../shared/gameLogic.js';
 
 const STATION_BY_ID = new Map(STATIONS.map((s) => [s.id, s]));
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -28,6 +29,10 @@ export function attachGame(io, { rooms, limiter }) {
   };
 
   const broadcastRoom = (room) => io.to(room.code).emit(S2C.ROOM, room.snapshot());
+  const broadcastGame = (room) => {
+    io.to(room.code).emit(S2C.GAME, room.gameSnapshot());
+    room.gameDirty = false;
+  };
 
   function removeAndNotify(room, id, type) {
     const res = room.removePlayer(id);
@@ -36,9 +41,9 @@ export function attachGame(io, { rooms, limiter }) {
     io.to(room.code).emit(S2C.NOTICE, { type, name: res.player.name });
     if (res.newHost) io.to(room.code).emit(S2C.NOTICE, { type: 'host', name: res.newHost.name });
     broadcastRoom(room);
+    broadcastGame(room);
   }
 
-  // explicit=true: oyuncu kendi cikti. false: baglanti koptu, yeniden baglanma suresi taninir.
   function leaveCurrent(socket, explicit) {
     const ctx = ctxOf(socket);
     const code = socket.data.roomCode;
@@ -84,7 +89,6 @@ export function attachGame(io, { rooms, limiter }) {
     if (kind === 'create') {
       p = room.addPlayer({ id, name, socketId: socket.id });
     } else if (p) {
-      // Yeniden baglanma: ayni gizli token.
       if (p.socketId && p.socketId !== socket.id) {
         const old = io.sockets.sockets.get(p.socketId);
         if (old) {
@@ -111,8 +115,9 @@ export function attachGame(io, { rooms, limiter }) {
     socket.data.playerId = id;
     socket.join(room.code);
     if (notice) socket.to(room.code).emit(S2C.NOTICE, notice);
-    reply(ack, { ok: true, you: id, room: room.snapshot() });
+    reply(ack, { ok: true, you: id, room: room.snapshot(), game: room.gameSnapshot() });
     broadcastRoom(room);
+    broadcastGame(room);
   }
 
   io.on('connection', (socket) => {
@@ -132,10 +137,8 @@ export function attachGame(io, { rooms, limiter }) {
       const now = Date.now();
       const dt = Math.min(Math.max((now - p.lastMoveAt) / 1000, 0), 1);
       p.lastMoveAt = now;
-      // Hiz butcesi: gecen sureye gore izin verilen mesafe birikir (en fazla 1.5 birim).
       const budget = Math.min(1.5, p.budget + PLAYER_SPEED * 1.15 * dt);
       const dist = Math.hypot(m.x - p.x, m.z - p.z);
-      // Duvar/mobilya icine girmeyi de reddet (istemci ayni fonksiyonu kullanir).
       const fixed = resolveCollisions(m.x, m.z, PLAYER_RADIUS);
       const inWall = Math.hypot(fixed.x - m.x, fixed.z - m.z) > 0.1;
       if (dist > budget + 0.05 || inWall) {
@@ -148,15 +151,55 @@ export function attachGame(io, { rooms, limiter }) {
       room.dirty = true;
     });
 
-    socket.on(C2S.INTERACT, (msg) => {
+    socket.on(C2S.INTERACT, (msg, ack) => {
       const ctx = ctxOf(socket);
-      if (!ctx || !limiter.allow(`${socket.id}:interact`, ...LIMITS.interact)) return;
-      if (!isObject(msg) || typeof msg.station !== 'string') return;
+      if (!ctx || !limiter.allow(`${socket.id}:interact`, ...LIMITS.interact)) {
+        return fail(ack, 'RATE_LIMIT', 'Yavaşla.');
+      }
+      if (!isObject(msg) || typeof msg.station !== 'string') return fail(ack, 'BAD_REQUEST', 'Geçersiz.');
       const st = STATION_BY_ID.get(msg.station);
-      if (!st) return;
+      if (!st) return fail(ack, 'BAD_STATION', 'İstasyon yok.');
       const { room, p } = ctx;
-      if (Math.hypot(p.x - st.x, p.z - st.z) > st.r + INTERACT_TOLERANCE) return;
-      socket.to(room.code).emit(S2C.ACTION, { id: p.id, station: st.id });
+      if (Math.hypot(p.x - st.x, p.z - st.z) > st.r + INTERACT_TOLERANCE) {
+        return fail(ack, 'TOO_FAR', 'İstasyona yaklaş.');
+      }
+
+      // Depoya ürün koyma: elinde bir şey varsa storage'da store dene
+      let result;
+      if ((st.id === 'storage_l' || st.id === 'storage_r') && room.getHands(p.id).length > 0) {
+        result = room.storeHand(p.id);
+        if (!result.ok) result = room.doStation(p.id, st.id);
+      } else {
+        result = room.doStation(p.id, st.id);
+      }
+
+      // Animasyonu herkese göster
+      io.to(room.code).emit(S2C.ACTION, { id: p.id, station: st.id, ok: !!result.ok });
+
+      if (result.ok && result.kind === 'serve') {
+        io.to(room.code).emit(S2C.SERVE, {
+          player: p.name,
+          label: result.label,
+          earned: result.earned,
+          tip: result.tip,
+        });
+      }
+
+      broadcastGame(room);
+      // oyuncu listesini de güncelle (hands değişmiş olabilir)
+      broadcastRoom(room);
+      reply(ack, result);
+    });
+
+    socket.on(C2S.DROP, (_msg, ack) => {
+      const ctx = ctxOf(socket);
+      if (!ctx || !limiter.allow(`${socket.id}:interact`, ...LIMITS.interact)) {
+        return fail(ack, 'RATE_LIMIT', 'Yavaşla.');
+      }
+      const result = ctx.room.dropHand(ctx.p.id);
+      broadcastRoom(ctx.room);
+      broadcastGame(ctx.room);
+      reply(ack, result);
     });
 
     socket.on(C2S.ROLE, (msg) => {
@@ -182,9 +225,18 @@ export function attachGame(io, { rooms, limiter }) {
     });
   });
 
-  // Hareketleri odalara toplu yayinla (sadece degisen odalar).
+  // Hareket + oyun tick
+  let lastTick = Date.now();
   const tick = setInterval(() => {
+    const now = Date.now();
+    const dt = Math.min((now - lastTick) / 1000, 0.25);
+    lastTick = now;
+
     for (const room of rooms.rooms.values()) {
+      if (room.connectedCount > 0) {
+        room.tick(dt);
+        if (room.gameDirty) broadcastGame(room);
+      }
       if (!room.dirty) continue;
       room.dirty = false;
       const list = [];

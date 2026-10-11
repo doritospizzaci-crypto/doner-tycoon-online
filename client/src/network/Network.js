@@ -16,7 +16,6 @@ function makeToken() {
   return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Basit olay yayıcı + Socket.IO sarmalayıcı.
 export class Network {
   constructor() {
     this.handlers = new Map();
@@ -25,7 +24,6 @@ export class Network {
     this.roomCode = null;
     this.name = '';
     this.myId = null;
-    // Gizli token sadece bu tarayıcıda durur; sunucu bundan herkese açık kimlik türetir.
     try {
       this.token = localStorage.getItem('dto_token') || makeToken();
       localStorage.setItem('dto_token', this.token);
@@ -68,6 +66,10 @@ export class Network {
     s.on(S2C.CORRECT, (p) => this.emit('correct', p));
     s.on(S2C.ACTION, (a) => this.emit('action', a));
     s.on(S2C.CHAT, (m) => this.emit('chat', m));
+    s.on(S2C.GAME, (g) => this.emit('game', g));
+    s.on(S2C.SERVE, (s) => this.emit('serve', s));
+    s.on(S2C.FAIL, (f) => this.emit('fail', f));
+    s.on(S2C.TIP, (t) => this.emit('tip', t));
   }
 
   request(ev, payload, timeout = 8000) {
@@ -106,7 +108,8 @@ export class Network {
   }
 
   sendMove(x, z, r) { this.socket?.volatile.emit(C2S.MOVE, { x, z, r }); }
-  sendInteract(station) { this.socket?.emit(C2S.INTERACT, { station }); }
+  sendInteract(station) { return this.request(C2S.INTERACT, { station }); }
+  sendDrop() { return this.request(C2S.DROP, {}); }
   sendChat(text) { this.socket?.emit(C2S.CHAT, { text }); }
   sendRole(role) { this.socket?.emit(C2S.ROLE, { role }); }
 }

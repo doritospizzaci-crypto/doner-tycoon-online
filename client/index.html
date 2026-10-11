@@ -17,7 +17,7 @@
   <section id="lobby">
     <div class="lobby-card">
       <h1>Döner Tycoon</h1>
-      <p class="sub">Arkadaşlarınla aynı dükkânda çalış.</p>
+      <p class="sub">Arkadaşlarınla aynı dükkânda çalış. Müşteri gelince sipariş hazırla, kasa da teslim et!</p>
       <label for="name">Adın</label>
       <input id="name" maxlength="16" autocomplete="off" placeholder="Örn. Mehmet Usta">
       <button id="btn-create" class="primary">Oda oluştur</button>
@@ -38,10 +38,19 @@
       </button>
       <div id="players"></div>
       <div class="spacer"></div>
+      <div id="stats">
+        <span id="money">₺0</span>
+        <span id="rep">⭐ 70</span>
+        <span id="served">✅ 0</span>
+      </div>
       <span id="conn-mini" class="conn-mini" title="Bağlantı"></span>
       <button id="btn-chat" class="icon" aria-label="Sohbet">💬</button>
       <button id="btn-menu" class="icon" aria-label="Menü">☰</button>
     </div>
+
+    <div id="stock" title="Depo stoku"></div>
+    <div id="orders"></div>
+    <div id="hands" class="hands empty">El boş</div>
 
     <div id="chatlog"></div>
     <form id="chatform" hidden autocomplete="off">
@@ -50,10 +59,12 @@
     </form>
 
     <div id="hint" hidden></div>
+    <div id="toast" hidden></div>
 
     <div id="touch" hidden>
       <div id="joystick"><div id="knob"></div></div>
       <button id="btn-act">E</button>
+      <button id="btn-drop" title="Elindekini bırak">🗑</button>
     </div>
   </div>
 
@@ -69,7 +80,13 @@
       <label class="check"><input type="checkbox" id="set-fx" checked> Parçacık efektleri (buhar)</label>
       <label for="set-role">Rolün (isteğe bağlı)</label>
       <select id="set-role"></select>
-      <p class="help">PC: WASD hareket, E etkileşim, fare sürükle kamera, tekerlek yakınlaştır, Enter sohbet, Esc menü.<br>Mobil: joystick, E butonu, parmakla sürükle döndür, iki parmak yakınlaştır.</p>
+      <p class="help">
+        <b>Nasıl oynanır?</b><br>
+        1. Izgarada döner pişir → 2. Kesme tezgâhında kes → 3. Ekmek, malzeme, patates, içecek al → 4. Kasada siparişi teslim et.<br>
+        Ellerinde en fazla 3 ürün tutabilirsin. Rafa yaklaşınca elindeki ürünü depoya koyarsın.<br>
+        PC: WASD hareket, E etkileşim, Q bırak, fare kamera, Enter sohbet, Esc menü.<br>
+        Mobil: joystick + E + çöp butonu.
+      </p>
       <div class="row">
         <button id="btn-resume" class="primary">Devam et</button>
         <button id="btn-leave" class="danger">Odadan çık</button>

@@ -13,7 +13,7 @@
 - Etkileşim: istasyona yaklaşınca ipucu çıkar, E/butona basınca çalışma animasyonu oynar ve odadaki diğerleri bunu görür (sunucu mesafeyi doğrular).
 - Grafik ayarı (Düşük/Orta/Yüksek), efekt kapatma, WebGL 2 kontrolü.
 
-Henüz YOK (sonraki ZIP'lerde): sipariş sistemi, döner kesme mekaniği, ortak kasa/ekonomi, yükseltmeler, PostgreSQL kayıt, ses, müşteriler. İstasyonlarda şimdilik sadece animasyon var; oyun mantığı bağlı değil.
+Artık VAR: müşteri sistemi, siparişler, döner pişirme/kesme, stok, elinde tutma, kasa teslimi, para, itibar, bahşiş. Henüz yok: yükseltmeler, PostgreSQL kayıt, ses efektleri, 3D müşteri modelleri.
 
 ## Yerelde çalıştırma
 
