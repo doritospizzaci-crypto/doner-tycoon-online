@@ -38,12 +38,40 @@ function makeLabel(text) {
   return spr;
 }
 
+function makeBubble(text) {
+  const c = document.createElement('canvas');
+  c.width = 320; c.height = 80;
+  const g = c.getContext('2d');
+  g.font = 'bold 26px "Trebuchet MS", sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const tw = Math.min(300, g.measureText(text).width + 28);
+  g.fillStyle = 'rgba(255,248,230,0.95)';
+  g.strokeStyle = '#c8803a';
+  g.lineWidth = 3;
+  g.beginPath(); g.roundRect((320 - tw) / 2, 8, tw, 50, 14); g.fill(); g.stroke();
+  // kuyruk
+  g.beginPath();
+  g.moveTo(160 - 8, 58); g.lineTo(160, 72); g.lineTo(160 + 8, 58);
+  g.fillStyle = 'rgba(255,248,230,0.95)'; g.fill();
+  g.fillStyle = '#2a1a14';
+  g.fillText(text, 160, 34, 290);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(2.2, 0.55, 1);
+  spr.renderOrder = 12;
+  spr.visible = false;
+  return spr;
+}
+
 export class Customer {
   constructor({ name, color }) {
     this.group = new THREE.Group();
     this.model = new THREE.Group();
     this.group.add(this.model);
     this.shirtMat = new THREE.MeshLambertMaterial({ color: color || '#4a7c9b' });
+    this.name = name;
 
     const blob = new THREE.Mesh(G.shadow, M.blob);
     blob.rotation.x = -Math.PI / 2; blob.position.y = 0.02;
@@ -61,7 +89,6 @@ export class Customer {
     const eyeR = new THREE.Mesh(G.eye, M.dark); eyeR.position.set(0.08, 1.46, 0.22);
     this.model.add(body, head, eyeL, eyeR);
 
-    // tabak (yemek gelince görünür)
     this.plate = new THREE.Group();
     const plateMesh = new THREE.Mesh(G.plate, M.plate);
     plateMesh.position.y = 0.9;
@@ -69,12 +96,17 @@ export class Customer {
     food.position.set(0, 0.96, 0);
     this.plate.add(plateMesh, food);
     this.plate.visible = false;
-    this.plate.position.set(0.35, 0, 0.35);
+    this.plate.position.set(0.28, 0, 0.28);
     this.group.add(this.plate);
 
     this.label = makeLabel(name);
-    this.label.position.y = 2.1;
+    this.label.position.y = 2.05;
     this.group.add(this.label);
+
+    this.bubbleSpr = makeBubble('…');
+    this.bubbleSpr.position.y = 2.55;
+    this.group.add(this.bubbleSpr);
+    this._bubbleText = '';
 
     this.phase = 0;
     this.speed = 0;
@@ -98,19 +130,16 @@ export class Customer {
     this.group.position.z = z;
   }
 
-  setFacing(r) {
-    this.model.rotation.y = r;
-  }
+  setFacing(r) { this.model.rotation.y = r; }
 
   setSeated(on) {
     this.seated = on;
     if (on) {
-      // oturma: bacaklar öne, gövde biraz aşağı
       this.legL.rotation.x = -Math.PI / 2.2;
       this.legR.rotation.x = -Math.PI / 2.2;
-      this.model.position.y = -0.15;
-      this.armL.rotation.x = -0.4;
-      this.armR.rotation.x = -0.4;
+      this.model.position.y = -0.18;
+      this.armL.rotation.x = -0.35;
+      this.armR.rotation.x = -0.35;
     } else {
       this.legL.rotation.x = 0;
       this.legR.rotation.x = 0;
@@ -118,18 +147,56 @@ export class Customer {
     }
   }
 
-  setHasFood(on) {
-    this.plate.visible = !!on;
+  setHasFood(on) { this.plate.visible = !!on; }
+
+  setBubble(text) {
+    if (!text) {
+      this.bubbleSpr.visible = false;
+      this._bubbleText = '';
+      return;
+    }
+    if (text === this._bubbleText) {
+      this.bubbleSpr.visible = true;
+      return;
+    }
+    this._bubbleText = text;
+    // yeniden çiz
+    const c = document.createElement('canvas');
+    c.width = 320; c.height = 80;
+    const g = c.getContext('2d');
+    g.font = 'bold 24px "Trebuchet MS", sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    const tw = Math.min(300, g.measureText(text).width + 28);
+    g.fillStyle = 'rgba(255,248,230,0.95)';
+    g.strokeStyle = '#c8803a';
+    g.lineWidth = 3;
+    g.beginPath(); g.roundRect((320 - tw) / 2, 8, tw, 50, 14); g.fill(); g.stroke();
+    g.beginPath();
+    g.moveTo(160 - 8, 58); g.lineTo(160, 72); g.lineTo(160 + 8, 58);
+    g.fillStyle = 'rgba(255,248,230,0.95)'; g.fill();
+    g.fillStyle = '#2a1a14';
+    g.fillText(text, 160, 34, 290);
+    const old = this.bubbleSpr.material.map;
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.bubbleSpr.material.map = tex;
+    this.bubbleSpr.material.needsUpdate = true;
+    old?.dispose();
+    this.bubbleSpr.visible = true;
   }
 
   update(dt, speed) {
     this.t += dt;
     this.speed = speed;
     if (this.seated) {
-      // hafif nefes / yemek animasyonu
-      this.armR.rotation.x = -0.4 + Math.sin(this.t * 2.5) * 0.15;
+      this.armR.rotation.x = -0.35 + Math.sin(this.t * 2.2) * 0.18;
+      if (this.plate.visible) {
+        // yemek yerken hafif eğil
+        this.model.rotation.x = Math.sin(this.t * 1.8) * 0.04;
+      }
       return;
     }
+    this.model.rotation.x = 0;
     this.phase += dt * Math.min(12, 6 + speed * 3);
     const swing = Math.sin(this.phase) * Math.min(0.7, speed * 0.25);
     this.legL.rotation.x = swing;
@@ -141,6 +208,8 @@ export class Customer {
   dispose() {
     this.label.material.map?.dispose();
     this.label.material.dispose();
+    this.bubbleSpr.material.map?.dispose();
+    this.bubbleSpr.material.dispose();
     this.shirtMat.dispose();
   }
 }

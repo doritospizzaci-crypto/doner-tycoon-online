@@ -130,7 +130,8 @@ export class UI {
     // para
     if (this.el.money) this.el.money.textContent = '₺' + game.money;
     if (this.el.rep) this.el.rep.textContent = '⭐ ' + game.reputation;
-    if (this.el.served) this.el.served.textContent = '✅ ' + game.served + (game.failed ? ' / ❌ ' + game.failed : '');
+    const streak = game.streak >= 2 ? ` 🔥${game.streak}` : '';
+    if (this.el.served) this.el.served.textContent = '✅ ' + game.served + (game.failed ? ' / ❌ ' + game.failed : '') + streak;
 
     // stok
     if (this.el.stock) {

@@ -136,6 +136,7 @@ function syncCustomers(list) {
     } else {
       r.ent.setHasFood(!!c.hasFood);
     }
+    r.ent.setBubble(c.bubble || null);
   }
 }
 
@@ -208,10 +209,12 @@ net.on('game', (g) => {
   if (state.inGame) syncCustomers(g.customers);
 });
 net.on('serve', (s) => {
-  const tip = s.tip ? ` (+₺${s.tip} bahşiş!)` : '';
+  const tip = s.tip ? ` +₺${s.tip} bahşiş` : '';
+  const st = s.streakBonus ? ` +₺${s.streakBonus} seri` : '';
+  const ser = s.streak && s.streak >= 3 ? ` 🔥${s.streak}` : '';
   const who = s.customer ? s.customer + ' · ' : '';
-  ui.toast(`💳 ${who}${s.label} · ₺${s.earned}${tip}`);
-  ui.addChat(`${s.player} ödeme aldı: ${who}${s.label} · ₺${s.earned}${tip}`, { system: true });
+  ui.toast(`💳 ${who}${s.label} · ₺${s.earned}${tip}${st}${ser}`);
+  ui.addChat(`${s.player} ödeme aldı: ${who}${s.label} · ₺${s.earned}${tip}${st}${ser}`, { system: true });
 });
 net.on('notice', (n) => {
   const t = {
@@ -293,7 +296,7 @@ async function interact() {
   if (!state.inGame || state.actCooldown > 0 || ui.menuOpen) return;
   const st = nearestStation(state.pos.x, state.pos.z, STATIONS);
   if (!st) return;
-  state.actCooldown = 0.9;
+  state.actCooldown = 0.55;
   state.me.playWork(1.1);
   const res = await net.sendInteract(st.id);
   if (!res) return;
@@ -429,14 +432,17 @@ function frame() {
   // ipucu: masaya özel metin
   const st = nearestStation(state.pos.x, state.pos.z, STATIONS);
   if (st && st.table && state.game) {
-    const cust = (state.game.customers || []).find((c) => c.tableId === st.id);
-    if (cust?.state === 'seated') ui.setHint({ id: st.id, label: 'Sipariş al (' + cust.name + ')' });
-    else if (cust?.state === 'ordered') ui.setHint({ id: st.id, label: 'Yemeği koy (' + cust.name + ')' });
-    else if (cust?.state === 'eating') ui.setHint({ id: st.id, label: cust.name + ' yemek yiyor…' });
+    const at = (state.game.customers || []).filter((c) => c.tableId === st.id);
+    const needOrder = at.filter((c) => c.state === 'seated');
+    const needFood = at.filter((c) => c.state === 'ordered');
+    const eating = at.filter((c) => c.state === 'eating');
+    if (needOrder.length) ui.setHint({ id: st.id, label: 'Sipariş al (' + needOrder[0].name + (needOrder.length > 1 ? ' +' + (needOrder.length-1) : '') + ')' });
+    else if (needFood.length) ui.setHint({ id: st.id, label: 'Yemeği koy (' + needFood[0].name + (needFood.length > 1 ? ' +' + (needFood.length-1) : '') + ')' });
+    else if (eating.length) ui.setHint({ id: st.id, label: eating.length + ' kişi yiyor…' });
     else ui.setHint(st);
   } else if (st && st.id === 'cashier' && state.game) {
-    const paying = (state.game.customers || []).find((c) => c.state === 'paying');
-    if (paying) ui.setHint({ id: 'cashier', label: 'Ödeme al (' + paying.name + ')' });
+    const paying = (state.game.customers || []).filter((c) => c.state === 'paying');
+    if (paying.length) ui.setHint({ id: 'cashier', label: 'Ödeme al (' + paying[0].name + (paying.length > 1 ? ' +' + (paying.length-1) : '') + ')' });
     else ui.setHint(st);
   } else {
     ui.setHint(st);

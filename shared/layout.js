@@ -1,5 +1,4 @@
 // Restoran yerlesimi. Hem istemci (cizim, carpisma) hem sunucu (dogrulama) kullanir.
-// Eksenler: x sag-sol, z on-arka. z = -8 arka duvar (mutfak), z = +8 on cephe (kapi).
 export const BOUNDS = { minX: -12, maxX: 12, minZ: -8, maxZ: 8 };
 
 export const ROLES = [
@@ -10,7 +9,6 @@ export const ROLES = [
   { id: 'yonetici', label: 'İşletme yöneticisi' },
 ];
 
-// Carpisma kutulari (merkez x,z ve genislik w, derinlik d)
 export const OBSTACLES = [
   { id: 'grill', x: -9, z: -6.9, w: 1.8, d: 1.4 },
   { id: 'cut', x: -6, z: -6.9, w: 2.4, d: 1.4 },
@@ -28,14 +26,28 @@ export const OBSTACLES = [
   { id: 'bench', x: 9.6, z: 6.4, w: 3.2, d: 1.0 },
 ];
 
-// Masalar: oturma yeri + servis noktasi
+// Her masada 4 sandalye (restaurant.js chair offsetleriyle uyumlu)
+// ox,oz masa merkezine göre; face: bakış yönü (masaya doğru)
+function seatsFor(tx, tz) {
+  return [
+    { ox: 1.05, oz: 0, face: -Math.PI / 2 },   // sağ
+    { ox: -1.05, oz: 0, face: Math.PI / 2 },  // sol
+    { ox: 0, oz: 1.05, face: Math.PI },         // ön (kapıya)
+    { ox: 0, oz: -1.05, face: 0 },              // arka (mutfağa)
+  ].map((s, i) => ({
+    index: i,
+    x: tx + s.ox,
+    z: tz + s.oz,
+    face: s.face,
+  }));
+}
+
 export const TABLES = [
-  { id: 'table1', x: -8, z: 4.8, seatX: -8, seatZ: 5.85, face: Math.PI }, // güneye bakar (mutfağa)
-  { id: 'table2', x: -3, z: 4.8, seatX: -3, seatZ: 5.85, face: Math.PI },
-  { id: 'table3', x: 3, z: 4.8, seatX: 3, seatZ: 5.85, face: Math.PI },
+  { id: 'table1', x: -8, z: 4.8, seats: seatsFor(-8, 4.8) },
+  { id: 'table2', x: -3, z: 4.8, seats: seatsFor(-3, 4.8) },
+  { id: 'table3', x: 3, z: 4.8, seats: seatsFor(3, 4.8) },
 ];
 
-// Etkilesim noktalari
 export const STATIONS = [
   { id: 'grill', label: 'Döner ocağı', x: -9, z: -4.8, r: 1.7 },
   { id: 'cut', label: 'Döner kesme tezgâhı', x: -6, z: -4.8, r: 1.7 },
@@ -47,10 +59,9 @@ export const STATIONS = [
   { id: 'storage_l', label: 'Depo rafı', x: -9.8, z: -2.9, r: 1.3 },
   { id: 'storage_r', label: 'Depo rafı', x: 10, z: -2.9, r: 1.3 },
   { id: 'cashier', label: 'Kasa', x: 8, z: 0.2, r: 1.7 },
-  // Masalar: sipariş al / yemek koy
-  { id: 'table1', label: 'Masa 1', x: -8, z: 4.0, r: 1.6, table: true },
-  { id: 'table2', label: 'Masa 2', x: -3, z: 4.0, r: 1.6, table: true },
-  { id: 'table3', label: 'Masa 3', x: 3, z: 4.0, r: 1.6, table: true },
+  { id: 'table1', label: 'Masa 1', x: -8, z: 4.0, r: 1.8, table: true },
+  { id: 'table2', label: 'Masa 2', x: -3, z: 4.0, r: 1.8, table: true },
+  { id: 'table3', label: 'Masa 3', x: 3, z: 4.0, r: 1.8, table: true },
 ];
 
 export const SPAWN_POINTS = [
@@ -60,5 +71,10 @@ export const SPAWN_POINTS = [
 
 export const DOOR = { x: 0, z: 8, halfWidth: 1.6 };
 
-// Kasa önü bekleme noktası (ödeme için)
-export const CASHIER_WAIT = { x: 6.5, z: 0.5 };
+// Kasa önü kuyruk noktaları (birden fazla ödeme bekleyen)
+export const CASHIER_QUEUE = [
+  { x: 6.4, z: 0.3 },
+  { x: 5.6, z: 0.5 },
+  { x: 5.0, z: 0.9 },
+  { x: 4.5, z: 1.4 },
+];

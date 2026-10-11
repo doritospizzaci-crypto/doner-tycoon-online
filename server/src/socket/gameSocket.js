@@ -182,6 +182,8 @@ export function attachGame(io, { rooms, limiter }) {
           label: result.label,
           earned: result.earned,
           tip: result.tip || 0,
+          streakBonus: result.streakBonus || 0,
+          streak: result.streak || 0,
           customer: result.customer,
           kind: result.kind,
         });
