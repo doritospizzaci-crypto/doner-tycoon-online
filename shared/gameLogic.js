@@ -15,41 +15,40 @@ export const RECIPES = {
     label: 'Klasik Döner',
     price: 85,
     needs: { meat: 1, bread: 1, veg: 1 },
-    time: 45, // saniye sabır
+    time: 55,
   },
   double: {
     id: 'double',
     label: 'Duble Döner',
     price: 120,
     needs: { meat: 2, bread: 1, veg: 1 },
-    time: 50,
+    time: 60,
   },
   full: {
     id: 'full',
     label: 'Tam Döner Menü',
     price: 150,
     needs: { meat: 1, bread: 1, veg: 1, fries: 1, drink: 1 },
-    time: 55,
+    time: 65,
   },
   fries_only: {
     id: 'fries_only',
     label: 'Patates',
     price: 40,
     needs: { fries: 1 },
-    time: 35,
+    time: 40,
   },
   drink_only: {
     id: 'drink_only',
     label: 'İçecek',
     price: 25,
     needs: { drink: 1 },
-    time: 30,
+    time: 35,
   },
 };
 
 export const RECIPE_LIST = Object.values(RECIPES);
 
-// İstasyon → üretim / eylem
 export const STATION_ACTIONS = {
   grill: { produce: null, label: 'Döner pişir', workMs: 1800 },
   cut: { produce: 'meat', label: 'Döner kes', workMs: 1200, from: 'spit' },
@@ -60,7 +59,10 @@ export const STATION_ACTIONS = {
   storage_l: { produce: null, label: 'Rafı kontrol et', workMs: 500 },
   storage_r: { produce: null, label: 'Rafı kontrol et', workMs: 500 },
   orderboard: { produce: null, label: 'Siparişlere bak', workMs: 400 },
-  cashier: { produce: null, label: 'Sipariş teslim et', workMs: 900 },
+  cashier: { produce: null, label: 'Ödeme al', workMs: 900 },
+  table1: { produce: null, label: 'Masa 1', workMs: 600 },
+  table2: { produce: null, label: 'Masa 2', workMs: 600 },
+  table3: { produce: null, label: 'Masa 3', workMs: 600 },
 };
 
 export const MAX_STOCK = {
@@ -69,7 +71,7 @@ export const MAX_STOCK = {
   veg: 16,
   fries: 10,
   drink: 12,
-  spit: 8, // ızgaradaki pişmiş et kapasitesi
+  spit: 8,
 };
 
 export const START_STOCK = {
@@ -81,13 +83,14 @@ export const START_STOCK = {
   spit: 2,
 };
 
-export const CUSTOMER_SPAWN_INTERVAL = 8; // sn (ortalama, biraz rastgele)
-export const MAX_ACTIVE_ORDERS = 5;
-export const MAX_CUSTOMERS = 6;
-export const HAND_SLOTS = 3; // oyuncu en fazla 3 ürün tutabilir
+export const CUSTOMER_SPAWN_INTERVAL = 10;
+export const MAX_ACTIVE_ORDERS = 3;
+export const MAX_CUSTOMERS = 3; // masa sayısı kadar
+export const HAND_SLOTS = 3;
+export const EAT_TIME = 12; // yemek yeme süresi (sn)
 
 export function randomRecipe() {
-  const weights = [40, 20, 25, 10, 5]; // classic, double, full, fries, drink
+  const weights = [40, 20, 25, 10, 5];
   let r = Math.random() * 100;
   for (let i = 0; i < RECIPE_LIST.length; i++) {
     r -= weights[i];
@@ -116,3 +119,10 @@ export function emptyHands() {
 export function handsCount(hands) {
   return hands.reduce((a, it) => a + (it.qty || 1), 0);
 }
+
+export const CUSTOMER_COLORS = ['#4a7c9b', '#8b5e3c', '#5a7a4a', '#7a4a6a', '#4a5a7a', '#9b6b3a'];
+export const CUSTOMER_NAMES = [
+  'Ahmet', 'Ayşe', 'Mehmet', 'Fatma', 'Can', 'Zeynep', 'Emre', 'Elif',
+  'Burak', 'Selin', 'Deniz', 'Cem', 'Nur', 'Kaan', 'İrem', 'Yusuf',
+  'Merve', 'Oğuz', 'Seda', 'Hakan', 'Leyla', 'Berk', 'Gül', 'Onur',
+];

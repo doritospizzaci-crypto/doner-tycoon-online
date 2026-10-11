@@ -128,3 +128,4 @@ body.chat-open #chatlog{bottom:auto;top:calc(116px + env(safe-area-inset-top))}
   #stock{font-size:.75rem;max-width:55vw}
   .hands{bottom:calc(160px + env(safe-area-inset-bottom));font-size:.78rem}
 }
+.ord.pay{border-left-color:#6cc070;background:#2a3a24ee}

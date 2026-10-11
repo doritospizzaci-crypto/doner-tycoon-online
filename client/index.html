@@ -17,7 +17,7 @@
   <section id="lobby">
     <div class="lobby-card">
       <h1>Döner Tycoon</h1>
-      <p class="sub">Arkadaşlarınla aynı dükkânda çalış. Müşteri gelince sipariş hazırla, kasa da teslim et!</p>
+      <p class="sub">Arkadaşlarınla aynı dükkânda çalış. Müşteri masaya oturur, sipariş al, yemeği götür, kasadan ödeme al!</p>
       <label for="name">Adın</label>
       <input id="name" maxlength="16" autocomplete="off" placeholder="Örn. Mehmet Usta">
       <button id="btn-create" class="primary">Oda oluştur</button>
@@ -82,10 +82,11 @@
       <select id="set-role"></select>
       <p class="help">
         <b>Nasıl oynanır?</b><br>
-        1. Izgarada döner pişir → 2. Kesme tezgâhında kes → 3. Ekmek, malzeme, patates, içecek al → 4. Kasada siparişi teslim et.<br>
-        Ellerinde en fazla 3 ürün tutabilirsin. Rafa yaklaşınca elindeki ürünü depoya koyarsın.<br>
-        PC: WASD hareket, E etkileşim, Q bırak, fare kamera, Enter sohbet, Esc menü.<br>
-        Mobil: joystick + E + çöp butonu.
+        1. Müşteri masaya oturur → masaya yaklaşıp <b>E</b> ile sipariş al.<br>
+        2. Izgara → kes → ekmek/malzeme/patates/içecek hazırla (elinde max 3).<br>
+        3. Masaya geri dön, <b>E</b> ile yemeği masaya koy. Müşteri yer.<br>
+        4. Yiyince kasaya gelir → kasada <b>E</b> ile ödemeyi al.<br>
+        PC: WASD, E, Q bırak · Mobil: joystick + E + çöp.
       </p>
       <div class="row">
         <button id="btn-resume" class="primary">Devam et</button>

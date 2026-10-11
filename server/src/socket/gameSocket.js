@@ -176,12 +176,24 @@ export function attachGame(io, { rooms, limiter }) {
       // Animasyonu herkese göster
       io.to(room.code).emit(S2C.ACTION, { id: p.id, station: st.id, ok: !!result.ok });
 
-      if (result.ok && result.kind === 'serve') {
+      if (result.ok && (result.kind === 'payment' || result.kind === 'serve')) {
         io.to(room.code).emit(S2C.SERVE, {
           player: p.name,
           label: result.label,
           earned: result.earned,
-          tip: result.tip,
+          tip: result.tip || 0,
+          customer: result.customer,
+          kind: result.kind,
+        });
+      }
+      if (result.ok && result.kind === 'take_order') {
+        io.to(room.code).emit(S2C.CHAT, {
+          id: 'sys', name: '', text: `${result.customer} sipariş verdi: ${result.label} (${result.tableId})`, t: Date.now(),
+        });
+      }
+      if (result.ok && result.kind === 'deliver') {
+        io.to(room.code).emit(S2C.CHAT, {
+          id: 'sys', name: '', text: `${result.customer} yemeğini aldı, afiyet olsun!`, t: Date.now(),
         });
       }
 

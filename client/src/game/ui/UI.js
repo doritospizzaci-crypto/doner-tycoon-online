@@ -171,9 +171,12 @@ export class UI {
           const needs = Object.entries(o.needs)
             .map(([k, v]) => `${v}×${ITEM_LABELS[k] || k}`)
             .join(', ');
+          const table = o.tableId ? o.tableId.replace('table', 'Masa ') : '';
+          const status = o.status === 'ready_pay' ? '💳 Ödeme' : '🍽️ Hazırla';
           d.innerHTML = `<b>${o.label}</b> <span class="price">₺${o.price}</span>
-            <div class="needs">${needs}</div>
+            <div class="needs">${table} · ${status}<br>${needs}</div>
             <div class="bar"><i style="width:${Math.round(pct * 100)}%"></i></div>`;
+          if (o.status === 'ready_pay') d.classList.add('pay');
           this.el.orders.append(d);
         }
       }

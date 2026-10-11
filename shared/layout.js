@@ -28,7 +28,14 @@ export const OBSTACLES = [
   { id: 'bench', x: 9.6, z: 6.4, w: 3.2, d: 1.0 },
 ];
 
-// Etkilesim noktalari: oyuncu bu noktanin yaricapi icindeyken E / buton ile calisir.
+// Masalar: oturma yeri + servis noktasi
+export const TABLES = [
+  { id: 'table1', x: -8, z: 4.8, seatX: -8, seatZ: 5.85, face: Math.PI }, // güneye bakar (mutfağa)
+  { id: 'table2', x: -3, z: 4.8, seatX: -3, seatZ: 5.85, face: Math.PI },
+  { id: 'table3', x: 3, z: 4.8, seatX: 3, seatZ: 5.85, face: Math.PI },
+];
+
+// Etkilesim noktalari
 export const STATIONS = [
   { id: 'grill', label: 'Döner ocağı', x: -9, z: -4.8, r: 1.7 },
   { id: 'cut', label: 'Döner kesme tezgâhı', x: -6, z: -4.8, r: 1.7 },
@@ -40,6 +47,10 @@ export const STATIONS = [
   { id: 'storage_l', label: 'Depo rafı', x: -9.8, z: -2.9, r: 1.3 },
   { id: 'storage_r', label: 'Depo rafı', x: 10, z: -2.9, r: 1.3 },
   { id: 'cashier', label: 'Kasa', x: 8, z: 0.2, r: 1.7 },
+  // Masalar: sipariş al / yemek koy
+  { id: 'table1', label: 'Masa 1', x: -8, z: 4.0, r: 1.6, table: true },
+  { id: 'table2', label: 'Masa 2', x: -3, z: 4.0, r: 1.6, table: true },
+  { id: 'table3', label: 'Masa 3', x: 3, z: 4.0, r: 1.6, table: true },
 ];
 
 export const SPAWN_POINTS = [
@@ -48,3 +59,6 @@ export const SPAWN_POINTS = [
 ];
 
 export const DOOR = { x: 0, z: 8, halfWidth: 1.6 };
+
+// Kasa önü bekleme noktası (ödeme için)
+export const CASHIER_WAIT = { x: 6.5, z: 0.5 };

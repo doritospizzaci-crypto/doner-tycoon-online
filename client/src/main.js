@@ -7,6 +7,7 @@ import { Network } from './network/Network.js';
 import { Input, setupJoystick } from './game/controls/Input.js';
 import { IsoCamera } from './game/camera/IsoCamera.js';
 import { Character } from './game/entities/Character.js';
+import { Customer } from './game/entities/Customer.js';
 import { buildRestaurant } from './game/world/restaurant.js';
 import { UI } from './game/ui/UI.js';
 
@@ -75,6 +76,7 @@ const state = {
   room: null,
   game: null,
   myHands: [],
+  customers: new Map(), // id -> { entity, tx, tz, tr, state }
 };
 
 function addRemote(p) {
@@ -95,6 +97,46 @@ function removeRemote(id) {
 function clearWorldPlayers() {
   for (const id of [...state.remotes.keys()]) removeRemote(id);
   if (state.me) { scene.remove(state.me.group); state.me.dispose(); state.me = null; }
+  for (const id of [...state.customers.keys()]) removeCustomer(id);
+}
+
+function addCustomer(c) {
+  if (state.customers.has(c.id)) return;
+  const ent = new Customer({ name: c.name, color: c.color });
+  ent.setPosition(c.x, c.z);
+  ent.setFacing(c.r || 0);
+  const seated = c.state === 'seated' || c.state === 'ordered' || c.state === 'eating';
+  ent.setSeated(seated);
+  ent.setHasFood(!!c.hasFood);
+  scene.add(ent.group);
+  state.customers.set(c.id, { ent, tx: c.x, tz: c.z, tr: c.r || 0, state: c.state });
+}
+
+function removeCustomer(id) {
+  const r = state.customers.get(id);
+  if (!r) return;
+  scene.remove(r.ent.group);
+  r.ent.dispose();
+  state.customers.delete(id);
+}
+
+function syncCustomers(list) {
+  if (!list) return;
+  const ids = new Set(list.map((c) => c.id));
+  for (const id of [...state.customers.keys()]) if (!ids.has(id)) removeCustomer(id);
+  for (const c of list) {
+    if (!state.customers.has(c.id)) addCustomer(c);
+    const r = state.customers.get(c.id);
+    r.tx = c.x; r.tz = c.z; r.tr = c.r || 0;
+    if (r.state !== c.state) {
+      r.state = c.state;
+      const seated = c.state === 'seated' || c.state === 'ordered' || c.state === 'eating';
+      r.ent.setSeated(seated);
+      r.ent.setHasFood(!!c.hasFood);
+    } else {
+      r.ent.setHasFood(!!c.hasFood);
+    }
+  }
 }
 
 function syncRoom(room) {
@@ -128,6 +170,7 @@ function enterGame(res) {
   ui.addChat('Odaya girdin. Kodu arkadaşlarınla paylaş: ' + res.room.code, { system: true });
   ui.addChat('İpucu: Izgara → Kes → Ekmek/Malzeme → Kasada teslim et!', { system: true });
   ui.renderGame(state.game, state.myHands);
+  if (state.game) syncCustomers(state.game.customers);
   state.inGame = true;
   state.lastSent.x = 1e9;
   startLoop();
@@ -158,15 +201,17 @@ net.on('correct', (p) => {
   state.lastSent.x = 1e9;
 });
 net.on('action', (a) => state.remotes.get(a.id)?.char.playWork(1.2));
-net.on('chat', (m) => ui.addChat(m.text, { name: m.name }));
+net.on('chat', (m) => ui.addChat(m.text, { name: m.name, system: !m.name || m.id === 'sys' }));
 net.on('game', (g) => {
   state.game = g;
   ui.renderGame(g, state.myHands);
+  if (state.inGame) syncCustomers(g.customers);
 });
 net.on('serve', (s) => {
   const tip = s.tip ? ` (+₺${s.tip} bahşiş!)` : '';
-  ui.toast(`✅ ${s.label} teslim · ₺${s.earned}${tip}`);
-  ui.addChat(`${s.player} ${s.label} teslim etti · ₺${s.earned}${tip}`, { system: true });
+  const who = s.customer ? s.customer + ' · ' : '';
+  ui.toast(`💳 ${who}${s.label} · ₺${s.earned}${tip}`);
+  ui.addChat(`${s.player} ödeme aldı: ${who}${s.label} · ₺${s.earned}${tip}`, { system: true });
 });
 net.on('notice', (n) => {
   const t = {
@@ -263,7 +308,11 @@ async function interact() {
     ui.toast('Stoğa eklendi: ' + (ITEM_LABELS[res.item] || res.item));
   } else if (res.kind === 'cook') {
     ui.toast('Izgara: ' + res.spit + ' dilim hazır');
-  } else if (res.kind === 'serve') {
+  } else if (res.kind === 'take_order') {
+    ui.toast('📝 ' + res.customer + ': ' + res.label);
+  } else if (res.kind === 'deliver') {
+    ui.toast('🍽️ ' + res.customer + ' yemeğini aldı');
+  } else if (res.kind === 'payment' || res.kind === 'serve') {
     // toast serve eventinden
   } else if (res.kind === 'storage') {
     ui.toast('Raf stoku güncellendi');
@@ -361,7 +410,37 @@ function frame() {
     playerList.push({ x: g.x, z: g.z });
   }
 
-  ui.setHint(nearestStation(state.pos.x, state.pos.z, STATIONS));
+  // müşteriler
+  for (const rc of state.customers.values()) {
+    const g = rc.ent.group.position;
+    const nx = g.x + (rc.tx - g.x) * a;
+    const nz = g.z + (rc.tz - g.z) * a;
+    const sp = Math.hypot(nx - g.x, nz - g.z) / dt;
+    g.x = nx; g.z = nz;
+    if (!rc.ent.seated) {
+      rc.ent.setFacing(angleLerp(rc.ent.model.rotation.y, rc.tr, a));
+    } else {
+      rc.ent.setFacing(rc.tr);
+    }
+    rc.ent.update(dt, sp);
+    playerList.push({ x: g.x, z: g.z });
+  }
+
+  // ipucu: masaya özel metin
+  const st = nearestStation(state.pos.x, state.pos.z, STATIONS);
+  if (st && st.table && state.game) {
+    const cust = (state.game.customers || []).find((c) => c.tableId === st.id);
+    if (cust?.state === 'seated') ui.setHint({ id: st.id, label: 'Sipariş al (' + cust.name + ')' });
+    else if (cust?.state === 'ordered') ui.setHint({ id: st.id, label: 'Yemeği koy (' + cust.name + ')' });
+    else if (cust?.state === 'eating') ui.setHint({ id: st.id, label: cust.name + ' yemek yiyor…' });
+    else ui.setHint(st);
+  } else if (st && st.id === 'cashier' && state.game) {
+    const paying = (state.game.customers || []).find((c) => c.state === 'paying');
+    if (paying) ui.setHint({ id: 'cashier', label: 'Ödeme al (' + paying.name + ')' });
+    else ui.setHint(st);
+  } else {
+    ui.setHint(st);
+  }
 
   cam.follow(state.pos.x, state.pos.z);
   cam.update(dt);
