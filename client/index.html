@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#2a1a14">
+  <title>Döner Tycoon Online</title>
+  <link rel="stylesheet" href="/styles/main.css">
+  <script src="/config.js"></script>
+  <script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js"}}</script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="fatal" hidden></div>
+
+  <section id="lobby">
+    <div class="lobby-card">
+      <h1>Döner Tycoon</h1>
+      <p class="sub">Arkadaşlarınla aynı dükkânda çalış.</p>
+      <label for="name">Adın</label>
+      <input id="name" maxlength="16" autocomplete="off" placeholder="Örn. Mehmet Usta">
+      <button id="btn-create" class="primary">Oda oluştur</button>
+      <div class="or">ya da kodla katıl</div>
+      <div class="row">
+        <input id="code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="ABCDE">
+        <button id="btn-join">Katıl</button>
+      </div>
+      <p id="lobby-msg" class="msg" role="status"></p>
+      <p id="conn" class="conn"><span class="dot"></span><span id="conn-text">Bağlanıyor…</span></p>
+    </div>
+  </section>
+
+  <div id="hud" hidden>
+    <div id="topbar">
+      <button id="btn-share" class="chip" title="Oda kodunu paylaş">
+        <span class="chip-label">Oda</span><b id="room-code">-----</b>
+      </button>
+      <div id="players"></div>
+      <div class="spacer"></div>
+      <span id="conn-mini" class="conn-mini" title="Bağlantı"></span>
+      <button id="btn-chat" class="icon" aria-label="Sohbet">💬</button>
+      <button id="btn-menu" class="icon" aria-label="Menü">☰</button>
+    </div>
+
+    <div id="chatlog"></div>
+    <form id="chatform" hidden autocomplete="off">
+      <input id="chatinput" maxlength="140" placeholder="Mesaj yaz…">
+      <button type="submit">Gönder</button>
+    </form>
+
+    <div id="hint" hidden></div>
+
+    <div id="touch" hidden>
+      <div id="joystick"><div id="knob"></div></div>
+      <button id="btn-act">E</button>
+    </div>
+  </div>
+
+  <div id="menu" hidden>
+    <div class="menu-card">
+      <h2>Menü</h2>
+      <label for="set-quality">Grafik kalitesi</label>
+      <select id="set-quality">
+        <option value="low">Düşük</option>
+        <option value="medium">Orta</option>
+        <option value="high">Yüksek</option>
+      </select>
+      <label class="check"><input type="checkbox" id="set-fx" checked> Parçacık efektleri (buhar)</label>
+      <label for="set-role">Rolün (isteğe bağlı)</label>
+      <select id="set-role"></select>
+      <p class="help">PC: WASD hareket, E etkileşim, fare sürükle kamera, tekerlek yakınlaştır, Enter sohbet, Esc menü.<br>Mobil: joystick, E butonu, parmakla sürükle döndür, iki parmak yakınlaştır.</p>
+      <div class="row">
+        <button id="btn-resume" class="primary">Devam et</button>
+        <button id="btn-leave" class="danger">Odadan çık</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

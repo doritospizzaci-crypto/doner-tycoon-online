@@ -1,0 +1,21 @@
+{
+  "name": "doner-tycoon-online",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "3D multiplayer Turk donerci simulasyonu",
+  "engines": { "node": ">=18.18" },
+  "scripts": {
+    "start": "node server/src/index.js",
+    "dev": "node --watch server/src/index.js",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "express": "4.21.2",
+    "socket.io": "4.8.1",
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "socket.io-client": "4.8.1"
+  }
+}
