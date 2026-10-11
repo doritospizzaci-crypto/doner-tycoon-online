@@ -1,0 +1,26 @@
+name: Zip aç
+on:
+  push:
+    paths: ['*.zip']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ZIP dosyalarını aç
+        run: |
+          set -e
+          for z in $(ls *.zip 2>/dev/null | sort); do
+            unzip -o "$z" -x '__MACOSX/*'
+            rm "$z"
+          done
+      - name: Commit
+        run: |
+          git config user.name "zip-bot"
+          git config user.email "zip-bot@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "ZIP açıldı"
+          git push
